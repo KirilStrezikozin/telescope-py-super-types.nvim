@@ -64,6 +64,37 @@ require("telescope").setup({
 })
 ```
 
+Example configuration together with the `telescope` setup in `lazy`:
+
+```lua
+{
+  'nvim-telescope/telescope.nvim',
+  dependencies = {
+    -- Your other telescope dependencies here...
+
+    -- Include this extension as a dependency of telescope
+    { 'KirilStrezikozin/telescope-py-super-types.nvim' },
+  },
+  config = function()
+    require('telescope').setup({
+      extensions = {
+        -- Your other telescope extension configs here...
+
+        -- Optional. Configure the defaults for this extension
+        py_super_types = {
+          style = "tree", -- default presentation style: "tree", "flatten", or "relpath"
+        },
+      },
+    })
+
+    -- Load the extension. Must come after you configured extension defaults above.
+    require("telescope").load_extension("py_super_types")
+
+    -- Rest of your telescope config...
+  end,
+}
+```
+
 ### Invocation commands
 
 ```vim
@@ -84,7 +115,6 @@ require("telescope").setup({
 
 ![relpath style preview](./.github/static/preview_relpath.png)
 
-
 ### Example keybinds
 
 ```lua
@@ -98,3 +128,4 @@ vim.keymap.set("n", "<leader>st", function()
   })
 end, { desc = "Search [S]uper [T]ypes" })
 ```
+
