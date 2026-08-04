@@ -1,10 +1,8 @@
-local ts_utils = require("nvim-treesitter.ts_utils")
-
 local M = {}
 
 -- Get enclosing class node
 M.get_enclosing_class_node = function()
-  local node = ts_utils.get_node_at_cursor()
+  local node = vim.treesitter.get_node()
   while node do
     if node:type() == "class_definition" then return node end
     node = node:parent()

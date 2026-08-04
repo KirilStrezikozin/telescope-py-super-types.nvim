@@ -41,7 +41,6 @@ This means:
   "KirilStrezikozin/telescope-py-super-types.nvim",
   dependencies = {
     "nvim-telescope/telescope.nvim",
-    "nvim-treesitter/nvim-treesitter",
   },
   config = function()
     require("telescope").load_extension("py_super_types")
