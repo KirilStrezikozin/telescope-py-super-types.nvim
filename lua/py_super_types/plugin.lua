@@ -39,7 +39,7 @@ M.py_super_types = function(opts)
     return
   end
 
-  utils.build_class_tree(class_node, original_buf, {}, function(tree)
+  utils.build_class_tree(class_node, original_buf, function(tree)
     if not tree then
       vim.notify("No base classes found", vim.log.levels.INFO)
       return
@@ -52,49 +52,68 @@ M.py_super_types = function(opts)
     -- Compute depths for all classes in the linearized list
     local max_depth = 0
     for _, cls in ipairs(linearized) do
-      local depth = utils.get_depth(tree, cls) or 1
+      local depth = (utils.get_depth(tree, cls) or 0) + 1
       cls.depth = depth
-      if depth and depth > max_depth then max_depth = depth end
+      if depth > max_depth then max_depth = depth end
     end
 
     tree.depths = { max = max_depth }
 
-    -- Compute indices and whether it's the first node at its depth level (for tree drawing)
+    -- Group into depth order and assign indices (used by flatten/relpath styles)
     local total_nodes = #linearized
     local inspected_nodes = 0
     local curr_depth = 1
     while inspected_nodes < total_nodes do
-      local i = 1
+      local count = 0
       for _, cls in ipairs(linearized) do
         if cls.depth == curr_depth then
           cls.index = inspected_nodes + 1
-          if i == 1 then cls.is_first = true end
           inspected_nodes = inspected_nodes + 1
-          i = i + 1
+          count = count + 1
           table.insert(flatenned, cls)
         end
       end
       table.insert(tree.depths, {
         depth = curr_depth,
-        count = i - 1,
+        count = count,
       })
       curr_depth = curr_depth + 1
     end
 
-    if opts.style == "flatten" or opts.style == "relpath" then
-      linearized = flatenned
+    -- Assemble the display items
+    local items = {}
+    if opts.style == "tree" then
+      for i, line in ipairs(utils.tree_lines(tree)) do
+        items[i] = { node = line.node, index = i, prefix = line.prefix }
+      end
+    else
+      for i, cls in ipairs(flatenned) do
+        items[i] = { node = cls, index = cls.index or i }
+      end
     end
 
     -- Add display info for Telescope entries
-    for _, cls in ipairs(linearized) do
+    for _, item in ipairs(items) do
+      local cls = item.node
       local filename = vim.uri_to_fname(vim.uri_from_bufnr(cls.buf))
+      local lnum = cls.node:start() + 1
+
+      local display
+      if opts.style == "flatten" then
+        display = cls.name
+      elseif opts.style == "relpath" then
+        local relpath = vim.fn.fnamemodify(filename, ":.")
+        display = string.format("%d %s:%d:%d %s", item.index, relpath, lnum, 1, cls.name)
+      else
+        display = string.format("%s%d %s", item.prefix or "", item.index, cls.name)
+      end
 
       table.insert(entries, {
-        value = cls,
-        display = utils.get_display_name(cls, filename, opts.style),
+        value = { name = cls.name, node = cls.node, buf = cls.buf },
+        display = display,
         ordinal = cls.name,
         filename = filename,
-        lnum = cls.node:start() + 1,
+        lnum = lnum,
         col = 1,
       })
     end
@@ -102,6 +121,7 @@ M.py_super_types = function(opts)
     -- Show the picker
     pickers.new({}, {
       prompt_title = string.format("Super Types of %s (%s)", tree.name, opts.style),
+      sorting_strategy = "ascending",
       finder = finders.new_table {
         results = entries,
         entry_maker = function(entry)
